@@ -1,0 +1,5 @@
+  format:
+    pdf:
+      toc: true
+      number-sections: true
+      colorlinks: true
