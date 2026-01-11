@@ -1,0 +1,52 @@
+- name: Auditoría Tema 2 - Organización del sistema
+  hosts: auditadas
+  become: yes
+  gather_facts: no
+
+  tasks:
+
+    # PRUEBA 1 - Permisos de las claves .ssh
+    - name: "[Prueba 1] Comprobar permisos de /root/.ssh"
+      stat:
+        path: /root/.ssh
+      register: root_ssh
+
+    - name: "[Prueba 1] Comprobar permisos de /home/adminpas"
+      stat:
+        path: /home/adminpas
+      register: home_admin
+
+    - name: "[Prueba 1] Comprobar permisos de /home/adminpas/.ssh"
+      stat:
+        path: /home/adminpas/.ssh
+      register: admin_ssh
+
+    - name: "[Prueba 1] Resultado"
+      debug:
+        msg: >
+          PRUEBA 1 (permisos claves .ssh):
+          {{
+            'INCORRECTO' if
+              root_ssh.stat.mode != '0700' or
+              home_admin.stat.mode != '0755' or
+              admin_ssh.stat.mode != '0700'
+            else 'CORRECTO'
+          }}
+
+    # PRUEBA 2 - Permisos /var/www para grupo web
+    - name: "[Prueba 2] Comprobar permisos de /var/www"
+      stat:
+        path: /var/www
+      register: www_dir
+
+    - name: "[Prueba 2] Resultado"
+      debug:
+        msg: >
+          PRUEBA 2 (permisos /var/www para grupo web):
+          {{
+            'CORRECTO'
+            if www_dir.stat.mode == '0775'
+            and www_dir.stat.pw_name == 'root'
+            and www_dir.stat.gr_name == 'web'
+            else 'INCORRECTO'
+          }}

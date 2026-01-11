@@ -1,0 +1,82 @@
+---
+- name: Auditoría Tema 1 - Introducción a GNU/Linux
+  hosts: auditadas
+  become: yes
+  gather_facts: no
+
+  tasks:
+
+    # PRUEBA 1 - Sudo instalado
+    - name: "[Prueba 1] Comprobar si sudo está instalado"
+      command: dpkg -l sudo
+      register: sudo_check
+      ignore_errors: yes
+
+    - name: "[Prueba 1] Resultado"
+      debug:
+        msg: >
+          PRUEBA 1 (sudo instalado):
+          {{ 'CORRECTO' if sudo_check.rc == 0 else 'INCORRECTO' }}
+
+    # PRUEBA 2 - Root no por defecto
+    - name: "[Prueba 2] Comprobar hash de root en /etc/shadow"
+      command: grep '^root:' /etc/shadow
+      register: root_shadow
+      changed_when: false
+
+    - name: "[Prueba 2] Resultado"
+      debug:
+        msg: >
+          PRUEBA 2 (root configurado):
+          {{ 'CORRECTO' if root_shadow.stdout.split(':')[1] != '!' else 'INCORRECTO' }}
+
+    # PRUEBA 3 - Usuario adminpas en grupo sudo
+    - name: "[Prueba 3] Comprobar usuario adminpas"
+      command: getent passwd adminpas
+      register: admin_user
+      ignore_errors: yes
+
+    - name: "[Prueba 3] Comprobar grupo sudo"
+      command: getent group sudo
+      register: sudo_group
+
+    - name: "[Prueba 3] Resultado"
+      debug:
+        msg: >
+          PRUEBA 3 (usuario adminpas):
+          {{ 'CORRECTO' if admin_user.rc == 0 and 'adminpas' in sudo_group.stdout else 'INCORRECTO' }}
+
+    # PRUEBA 4 - Servicio SSH
+    - name: "[Prueba 4] Comprobar servicio SSH"
+      service_facts:
+
+    - name: "[Prueba 4] Resultado"
+      debug:
+        msg: >
+          PRUEBA 4 (servicio SSH):
+          {{ 'CORRECTO' if services['ssh'].state == 'running' else 'INCORRECTO' }}
+    # PRUEBA 5 - Sólo terminal (sin entorno gráfico)
+    - name: "[Prueba 5] Comprobar servicios gráficos"
+      command: systemctl list-units --type=service --no-pager
+      register: gui_services
+      changed_when: false
+
+    - name: "[Prueba 5] Resultado"
+      debug:
+        msg: >
+          PRUEBA 5 (solo terminal):
+          {{ 'CORRECTO' if
+             gui_services.stdout | regex_search('gdm|lightdm|sddm|mdm|cinnamon|sddm') is not defined
+             else 'INCORRECTO' }}
+
+    # PRUEBA 6 - Sistema actualizado
+    - name: "[Prueba 6] Comprobar actualizaciones pendientes"
+      command: apt list --upgradable
+      register: updates
+      changed_when: false
+
+    - name: "[Prueba 6] Resultado"
+      debug:
+        msg: >
+          PRUEBA 6 (sistema actualizado):
+          {{ 'CORRECTO' if updates.stdout_lines | length <= 1 else 'INCORRECTO' }}
