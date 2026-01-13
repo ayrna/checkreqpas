@@ -44,8 +44,7 @@ Pensar una carpeta y subcarpetas que queramos con una serie de permisos. Por eje
 | Permisos u/g | Comprobar los permisos de `/etc/passwd`, `/etc/group`, `/etc/shadow` | Máscaras permisos | Estropear los permisos por ejemplo:  `chmod +w /etc/passwd`, `chmod 000 /etc/group`, `chmod a+rx /etc/shadow`
 | Comprobar contraseñas fáciles | Todos los usuarios deben tener contraseñas robustas | Con cracklib | El usuario `manzana` tendrá la contraseña `pera` | 
 | Caducidad | El usuario `becario` debe expirar en septiembre | Con chage | Se crea el usuario sin fecha de caducidad. |
-
-| Cuentas restrictivas | La cuenta `web` debe tener restricciones (nologin, sin shell, etc.) | (poner los requisitos que genera el paquete de `apache2`)| 
+| Cuentas restrictivas | La cuenta `web` debe tener restricciones (nologin, sin shell, etc.) | (poner los requisitos que genera el paquete de `apache2`: `/usr/sbin/nologin`; permisos y propietario `-rw-r--r-- 1 root root  /etc/apache2/apache2.conf` y `-rw-r--r-- 1 root root 419 mar 18  2024 /lib/systemd/system/apache2.service`)| cambiar `/usr/sbin/nologin` a `/bin/bash` y activar w+o en ficheros de configuración | 
 
 Comprobar que se ha realizado esto: https://www.uco.es/users/i02samoj/plazatu/pas/tema03-usuarios/tema03-usuarios.html#ejercicio-usuario-y-grupo-para-apache
 
