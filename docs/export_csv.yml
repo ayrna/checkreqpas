@@ -1,0 +1,29 @@
+---
+- name: Crear carpeta resultados en auditora
+  file:
+    path: /home/tfg-audit/resultados_csv
+    state: directory
+    mode: "0755"
+  delegate_to: localhost
+  become: false
+
+- name: Definir ruta de CSV
+  set_fact:
+    csv_path: "/home/tfg-audit/resultados_csv/{{ inventory_hostname }}_{{ tema_id }}.csv"
+  delegate_to: localhost
+  become: false
+
+- name: Escribir CSV completo (checks + resumen) en auditora
+  copy:
+    dest: "{{ csv_path }}"
+    mode: "0644"
+    content: |
+      host,tema,prueba_id,descripcion,resultado
+      {% for item in (checks | dict2items | sort(attribute='key')) %}
+      {{ inventory_hostname }},{{ tema_id }},{{ item.key }},{{ item.value.name | replace(',', ';') }},{{ 'OK' if item.value.ok else 'FAIL' }}
+      {% endfor %}
+
+      host,tema,passed,total,score_percent
+      {{ inventory_hostname }},{{ tema_id }},{{ passed_checks }},{{ total_checks }},{{ percent_score }}
+  delegate_to: localhost
+  become: false

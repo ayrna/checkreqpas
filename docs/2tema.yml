@@ -1,52 +1,121 @@
+---
 - name: Auditoría Tema 2 - Organización del sistema
   hosts: auditadas
   become: yes
   gather_facts: no
 
-  tasks:
+  vars:
+    tema_id: "tema2"
 
-    # PRUEBA 1 - Permisos de las claves .ssh
-    - name: "[Prueba 1] Comprobar permisos de /root/.ssh"
+  tasks:
+    # ==========================================
+    # Inicialización
+    # ==========================================
+    - name: Inicializar estructura de resultados
+      set_fact:
+        checks: {}
+      changed_when: false
+
+    #################################
+    # PRUEBA 1 - Permisos claves .ssh
+    #################################
+
+    - name: "[Prueba 1] Comprobar permisos /root/.ssh"
       stat:
         path: /root/.ssh
       register: root_ssh
+      failed_when: false
+      changed_when: false
 
-    - name: "[Prueba 1] Comprobar permisos de /home/adminpas"
+    - name: "[Prueba 1] Comprobar permisos /home/adminpas"
       stat:
         path: /home/adminpas
       register: home_admin
+      failed_when: false
+      changed_when: false
 
-    - name: "[Prueba 1] Comprobar permisos de /home/adminpas/.ssh"
+    - name: "[Prueba 1] Comprobar permisos /home/adminpas/.ssh"
       stat:
         path: /home/adminpas/.ssh
       register: admin_ssh
+      failed_when: false
+      changed_when: false
 
-    - name: "[Prueba 1] Resultado"
-      debug:
-        msg: >
-          PRUEBA 1 (permisos claves .ssh):
+    - name: "[Prueba 1] Guardar resultado"
+      set_fact:
+        checks: >-
           {{
-            'INCORRECTO' if
-              root_ssh.stat.mode != '0700' or
-              home_admin.stat.mode != '0755' or
-              admin_ssh.stat.mode != '0700'
-            else 'CORRECTO'
+            checks | combine({
+              '1': {
+                'name': 'permisos claves .ssh (root y adminpas)',
+                'ok': (
+                  (root_ssh.stat.exists | default(false)) and
+                  (home_admin.stat.exists | default(false)) and
+                  (admin_ssh.stat.exists | default(false)) and
+                  ((root_ssh.stat.mode | default('')) == '0700') and
+                  ((home_admin.stat.mode | default('')) == '0755') and
+                  ((admin_ssh.stat.mode | default('')) == '0700')
+                )
+              }
+            })
           }}
+      changed_when: false
 
+    #################################
     # PRUEBA 2 - Permisos /var/www para grupo web
-    - name: "[Prueba 2] Comprobar permisos de /var/www"
+    #################################
+
+    - name: "[Prueba 2] Comprobar /var/www"
       stat:
         path: /var/www
       register: www_dir
+      failed_when: false
+      changed_when: false
 
-    - name: "[Prueba 2] Resultado"
-      debug:
-        msg: >
-          PRUEBA 2 (permisos /var/www para grupo web):
+    - name: "[Prueba 2] Guardar resultado"
+      set_fact:
+        checks: >-
           {{
-            'CORRECTO'
-            if www_dir.stat.mode == '0775'
-            and www_dir.stat.pw_name == 'root'
-            and www_dir.stat.gr_name == 'web'
-            else 'INCORRECTO'
+            checks | combine({
+              '2': {
+                'name': '/var/www con grupo web (0775 root:web)',
+                'ok': (
+                  (www_dir.stat.exists | default(false)) and
+                  ((www_dir.stat.mode | default('')) == '0775') and
+                  ((www_dir.stat.pw_name | default('')) == 'root') and
+                  ((www_dir.stat.gr_name | default('')) == 'web')
+                )
+              }
+            })
           }}
+      changed_when: false
+
+    # ==========================
+    # SCORE FINAL
+    # ==========================
+    - name: Calcular score final
+      set_fact:
+        total_checks: "{{ checks | length }}"
+        passed_checks: "{{ (checks | dict2items | selectattr('value.ok','equalto',true) | list | length) | int }}"
+        percent_score: "{{ (( (checks | dict2items | selectattr('value.ok','equalto',true) | list | length) | int ) * 100 / ((checks | length) | int if ((checks | length) | int) > 0 else 1)) | round(0) | int }}"
+      changed_when: false
+
+    - name: Mostrar resultados (resumen)
+      debug:
+        msg: |
+          Tema: {{ tema_id }} Host: {{ inventory_hostname }}
+          {% for item in (checks | dict2items | sort(attribute='key')) %}
+          Prueba {{ item.key }} ({{ item.value.name }}): {{ 'CORRECTO' if item.value.ok else 'INCORRECTO' }}
+          {% endfor %}
+          SCORE: {{ passed_checks }}/{{ total_checks }} ({{ percent_score }}%)
+
+    # ==========================
+    # EXPORTAR CSV (máquina auditora)
+    # ==========================
+    - name: Exportar CSV en la máquina auditora
+      import_tasks: /home/tfg-audit/hosts/export_csv.yml
+      vars:
+        checks: "{{ checks }}"
+        passed_checks: "{{ passed_checks }}"
+        total_checks: "{{ total_checks }}"
+        percent_score: "{{ percent_score }}"
