@@ -1,0 +1,154 @@
+- name: Tema 3 - Gestión de Usuarios
+  hosts: auditadas
+  become: yes
+  gather_facts: no
+
+  tasks:
+
+    #################################
+    # PRUEBA 1 - Cracklib instalado
+    #################################
+    - name: "[Prueba 1] Comprobar Cracklib"
+      package_facts:
+
+    - name: "[Prueba 1] Resultado"
+      debug:
+        msg: >
+          PRUEBA 1 (Cracklib instalado):
+          {{
+            'CORRECTO'
+            if ('libpwquality-common' in ansible_facts.packages)
+               or ('libpwquality1' in ansible_facts.packages)
+            else 'INCORRECTO'
+          }}
+
+    #################################
+    # PRUEBA 2 - Permisos ficheros críticos
+    #################################
+    - name: Obtener estado de /etc/passwd
+      stat:
+        path: /etc/passwd
+      register: passwd_stat
+
+    - name: Obtener estado de /etc/group
+      stat:
+        path: /etc/group
+      register: group_stat
+
+    - name: Obtener estado de /etc/shadow
+      stat:
+        path: /etc/shadow
+      register: shadow_stat
+
+    - name: "[Prueba 2] Resultado"
+      debug:
+        msg: >
+          PRUEBA 2 (permisos usuarios):
+          {{
+            'CORRECTO'
+            if ((passwd_stat.stat.mode) == '0644')
+            and ((group_stat.stat.mode) == '0644')
+            and ((shadow_stat.stat.mode) == '0640')
+            else 'INCORRECTO'
+          }}
+
+    #################################
+    # PRUEBA 3 - Contraseña robusta y cambio de usuario "manzana"
+    #################################
+
+    - name: Comprobar existencia de usuario manzana
+      getent:
+        database: passwd
+        key: manzana
+      register: manzana_user
+      ignore_errors: yes
+
+    - name: Obtener hash de /etc/shadow si el usuario existe
+      command: grep '^manzana:' /etc/shadow
+      register: manzana_shadow
+      when: manzana_user is succeeded
+      ignore_errors: yes
+
+    - name: "[Prueba 3] Resultado"
+      debug:
+        msg: >
+          PRUEBA 3 (cambio de contraseña usuario manzana):
+          {{
+            'CORRECTO'
+            if manzana_user.failed
+            or (manzana_shadow.stdout | regex_search('^manzana:[^:]+') | default('') != 'manzana:$y$j9T$dpDEoZU/u.os0HHRrGnS.0$C6LmBxj5NCSnk0l/Kifvqdl8DuBLmOdLZaNd0esxRiC')
+            else 'INCORRECTO'
+          }}
+
+
+    #################################
+    # PRUEBA 4 - Caducidad usuario becario
+    #################################
+    - name: Comprobar si existe usuario becario
+      getent:
+        database: passwd
+        key: becario
+      register: becario_user
+      ignore_errors: yes
+
+    - name: Obtener caducidad de becario
+      command: chage -l becario
+      register: becario_chage
+      when: becario_user is succeeded
+      ignore_errors: yes
+
+    - name: "[Prueba 4] Caducidad usuario becario"
+      debug:
+        msg: >
+          PRUEBA 4 (caducidad usuario becario):
+          {{
+            'CORRECTO'
+            if becario_user is succeeded
+            and 'Sep' in becario_chage.stdout
+            else 'INCORRECTO'
+          }}
+
+    #################################
+    # PRUEBA 5 - Cuenta web restrictiva
+    #################################
+
+    - name: Comprobar existencia de Apache
+      command: dpkg -l apache2
+      register: apache_check
+      ignore_errors: yes
+
+    - name: Obtener usuario www-data
+      getent:
+        database: passwd
+        key: www-data
+      register: web_user
+      when: apache_check.rc == 0
+      ignore_errors: yes
+
+    - name: Comprobar permisos apache2.conf
+      stat:
+        path: /etc/apache2/apache2.conf
+      register: apache_conf
+      when: apache_check.rc == 0
+
+    - name: Comprobar permisos apache2.service
+      stat:
+        path: /lib/systemd/system/apache2.service
+      register: apache_service
+      when: apache_check.rc == 0
+
+    - name: "[Prueba] Resultado cuenta web restrictiva"
+      debug:
+        msg: >
+          PRUEBA (cuenta web restrictiva):
+          {{
+            'CORRECTO'
+            if apache_check.rc == 0
+            and web_user is succeeded
+            and web_user.passwd.shell in ['/usr/sbin/nologin', '/bin/false']
+            and apache_conf.stat.pw_name == 'root'
+            and apache_conf.stat.gr_name == 'root'
+            and apache_conf.stat.mode == '0644'
+            and apache_service.stat.mode == '0644'
+            else 'INCORRECTO'
+          }}
