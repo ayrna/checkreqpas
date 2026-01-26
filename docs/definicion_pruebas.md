@@ -48,6 +48,30 @@ Pensar una carpeta y subcarpetas que queramos con una serie de permisos. Por eje
 
 Comprobar que se ha realizado esto: https://www.uco.es/users/i02samoj/plazatu/pas/tema03-usuarios/tema03-usuarios.html#ejercicio-usuario-y-grupo-para-apache
 
+
+## Tema 4: Arranque y parada
+
+
+| Prueba | Requisito | Cómo probarlo | Cómo generarlo | 
+| --- | --- | --- | --- | 
+| Grub timeout | Tiempo de espera grub a cero. Se debe cambiar en `/etc/default/grub` y ejecutar `sudo update-grub` | El valor de la variable `timeout=0` (por defecto `5`) en `/boot/grub/grub.cfg` | Viene en la instalación base. |
+| Instalar servicio `systemd` | Instalar un servidor PHP de ejemplo de [este tutorial](https://medium.com/@benmorel/creating-a-linux-service-with-systemd-611b5c8b91d6). | `resultado=$(echo hola BARRAVERTICAL nc -u 127.0.0.1 10000 2>&1)` debe devolver `ubyn en $resultado` | No hay que hacer nada | 
+
+
+
+## Tema 5: Gestión de recursos del sistema
+
+| Prueba | Requisito | Cómo probarlo | Cómo generarlo | 
+| --- | --- | --- | --- | 
+| Limitar el número de procesos para usuarios | Directiva `ulimit` | Por línea de comandos comprobar que `ulimit` no devuelve `unlimited` (1000 sería un buen valor aquí)| `unlimited` es el valor por defecto | 
+
+Enlaces: 
+- <https://www.cyberciti.biz/faq/understanding-bash-fork-bomb/>
+- <https://www.geeksforgeeks.org/linux-unix/limits-conf-file-to-limit-users-process-in-linux-with-examples/>
+
+
+
+
 # Dudas para el Servicio de Informática
 * Forzar a tener una imagen sin interfaz gráfica
 * Ampliar las imágenes 
