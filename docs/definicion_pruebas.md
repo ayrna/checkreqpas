@@ -16,13 +16,13 @@ El objetivo de estas tareas es que el alumnado haya realizado una postinstalaci�
 
 Referencias: 
 
-https://www.uco.es/users/i02samoj/plazatu/pas/tema01-introduccion/tema01c-proyecto.html#proyecto-asignatura
+- <https://www.uco.es/users/i02samoj/plazatu/pas/tema01-introduccion/tema01c-proyecto.html#proyecto-asignatura>
 
-https://www.digitalocean.com/community/tutorials/initial-server-setup-with-ubuntu-22-04
+- <https://www.digitalocean.com/community/tutorials/initial-server-setup-with-ubuntu-22-04>
 
-https://www.digitalocean.com/community/tutorials/a-linux-command-line-primer
+- <https://www.digitalocean.com/community/tutorials/a-linux-command-line-primer>
 
-https://www.digitalocean.com/community/tutorials?q=%5BLinux%20Basics%5D
+- <https://www.digitalocean.com/community/tutorials?q=%5BLinux%20Basics%5D>
 
 
 ## Tema 2: organización sistema 
@@ -46,7 +46,7 @@ Pensar una carpeta y subcarpetas que queramos con una serie de permisos. Por eje
 | Caducidad | El usuario `becario` debe expirar en septiembre | Con chage | Se crea el usuario sin fecha de caducidad. |
 | Cuentas restrictivas | La cuenta `web` debe tener restricciones (nologin, sin shell, etc.) | (poner los requisitos que genera el paquete de `apache2`: `/usr/sbin/nologin`; permisos y propietario `-rw-r--r-- 1 root root  /etc/apache2/apache2.conf` y `-rw-r--r-- 1 root root 419 mar 18  2024 /lib/systemd/system/apache2.service`)| cambiar `/usr/sbin/nologin` a `/bin/bash` y activar w+o en ficheros de configuración | 
 
-Comprobar que se ha realizado esto: https://www.uco.es/users/i02samoj/plazatu/pas/tema03-usuarios/tema03-usuarios.html#ejercicio-usuario-y-grupo-para-apache
+Comprobar que se ha realizado esto: <https://www.uco.es/users/i02samoj/plazatu/pas/tema03-usuarios/tema03-usuarios.html#ejercicio-usuario-y-grupo-para-apache>
 
 
 ## Tema 4: Arranque y parada
@@ -86,7 +86,8 @@ tail -f /var/log/memoria.log
 ```
 
 
-Enlaces: 
+Referencias: 
+
 - <https://www.cyberciti.biz/faq/understanding-bash-fork-bomb/>
 - <https://www.geeksforgeeks.org/linux-unix/limits-conf-file-to-limit-users-process-in-linux-with-examples/>
 - <https://www.linuxbash.sh/post/how-to-create-a-bash-script-to-monitor-system-resources>
@@ -110,7 +111,8 @@ NOTA: Adaptar el último caso al dispositivo y partición de la imagen de Debian
 | Backup dump | Debe haber copias de seguridad en | Esto debe devolver un listado de varias líneas `sudo restore -t -f /mnt/backup/dump0`. Si devuelve `No such file or directory` es que no hay ningún fichero | No hay que hacer nada | 
 | Programación backup | Las copias deben estar programadas | `crontab -l` debe devolver al menos 2 líneas que no empiecen por #. Las líneas contendrán la orden `dump` | No hay que hacer nada |
 
-Enlaces: 
+Referencias: 
+
 - Receta de backup incremental con dump + restore + crontab en los apuntes del tema 8.
 
 
@@ -127,12 +129,14 @@ TODO: Cuando tengamos OpenNebula funcionando veremos la dificultad de montar un 
 
 
 
-Enlaces:
+Referencias: 
+
 - [Actualizaciones automáticas en nuestro equipo con unattended-upgrades](https://geekland.eu/actualizaciones-automaticas-en-nuestro-equipo-con-unattended-upgrades/)
 - [How To Set Up a Firewall with UFW on Debian 11](https://www.digitalocean.com/community/tutorials/how-to-set-up-a-firewall-with-ufw-on-debian)
 - [https://wiki.archlinux.org/title/Systemd-resolved](systemd-resolved). Aquí no indican que hay que reinicar el servicio para que lea los nuevos DNS con `systemctl restart systemd-resolved.service` 
 
+
 # Dudas para el Servicio de Informática
-* Forzar a tener una imagen sin interfaz gráfica
+
 * Ampliar las imágenes 
 * Se pueden conectar por SSH, ¿bajo qué dirección o nombre?

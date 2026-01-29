@@ -1,5 +1,7 @@
-  format:
-    pdf:
-      toc: true
-      number-sections: true
-      colorlinks: true
+format:
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+  html:
+    embed-resources: true
