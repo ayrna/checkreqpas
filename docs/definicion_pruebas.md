@@ -55,7 +55,7 @@ Comprobar que se ha realizado esto: https://www.uco.es/users/i02samoj/plazatu/pa
 | Prueba | Requisito | Cómo probarlo | Cómo generarlo | 
 | --- | --- | --- | --- | 
 | Grub timeout | Tiempo de espera grub a cero. Se debe cambiar en `/etc/default/grub` y ejecutar `sudo update-grub` | El valor de la variable `timeout=0` (por defecto `5`) en `/boot/grub/grub.cfg` | Viene en la instalación base. |
-| Instalar servicio `systemd` | Instalar un servidor PHP de ejemplo de [este tutorial](https://medium.com/@benmorel/creating-a-linux-service-with-systemd-611b5c8b91d6). | `resultado=$(echo hola BARRAVERTICAL nc -u 127.0.0.1 10000 2>&1)` debe devolver `ubyn en $resultado` | No hay que hacer nada | 
+| Instalar servicio `systemd` | Instalar un servidor PHP de ejemplo de [este tutorial](https://medium.com/@benmorel/creating-a-linux-service-with-systemd-611b5c8b91d6). | `resultado=$(echo hola \| nc -u 127.0.0.1 10000 2>&1)` debe devolver `ubyn en $resultado` | No hay que hacer nada | 
 
 
 
@@ -97,11 +97,40 @@ Enlaces:
 | Prueba | Requisito | Cómo probarlo | Cómo generarlo | 
 | --- | --- | --- | --- | 
 | Cuotas instaladas | Instalado el paquete `quota` | Comprobar que está instalado | No hay que hacer nada | 
-| Cuotas activadas en el sistema de ficheros | El usuario debe haber activado con `tune2fs -O quota /dev/sda3` | Si no están activadas esto devuelve una línea vacía `sudo tune2fs -l /dev/sda3 BARRA grep -i quota` | No hay que hacer nada | 
+| Cuotas activadas en el sistema de ficheros | El usuario debe haber activado con `tune2fs -O quota /dev/sda3` | Si no están activadas esto devuelve una línea vacía `sudo tune2fs -l /dev/sda3 \| grep -i quota` | No hay que hacer nada | 
 | Probar quotas (TODO) | Script que escriba en disco un fichero enorme | `fallocate --length 2000MB ~/fichero` | No hay que hacer nada | 
 
 NOTA: Adaptar el último caso al dispositivo y partición de la imagen de Debian en OpenNebula. Quizás se pueda hacer una tarea que sea poner una etiqueta "RAIZ" o "HOME" y así queda disponible con la etiqueta y en `/dev/disk/by-label/`
 
+
+## Tema 8: Restauración y copias de seguridad
+
+| Prueba | Requisito | Cómo probarlo | Cómo generarlo | 
+| --- | --- | --- | --- | 
+| Backup dump | Debe haber copias de seguridad en | Esto debe devolver un listado de varias líneas `sudo restore -t -f /mnt/backup/dump0`. Si devuelve `No such file or directory` es que no hay ningún fichero | No hay que hacer nada | 
+| Programación backup | Las copias deben estar programadas | `crontab -l` debe devolver al menos 2 líneas que no empiecen por #. Las líneas contendrán la orden `dump` | No hay que hacer nada |
+
+Enlaces: 
+- Receta de backup incremental con dump + restore + crontab en los apuntes del tema 8.
+
+
+## Tema 9: Gestión de las comunicaciones
+
+| Prueba | Requisito | Cómo probarlo | Cómo generarlo | 
+| --- | --- | --- | --- | 
+| Actualizaciones automáticas | Tener instalado y configurado el paquete `unattended-upgrades` | Comprobar que está instalado `unattended-upgrades` y que el fichero `/etc/apt/apt.conf.d/20auto-upgrades` y tiene el contenido `APT::Periodic::Update-Package-Lists "1";APT::Periodic::Unattended-Upgrade "1";APT::Periodic::AutocleanInterval "7";` (ver tutorial abajo) | No hay que hacer nada | 
+| Nombre de máquina correcto | Valores correctos en `/etc/hostname` | El comando `hostname` devuelve `login_pas` como nombre de máquina | No hay que hacer nada | 
+| Cortafuegos | Instalación y configuración básica de `ufw` | Se rechazan todas las conexiones salvo puerto 22, 80 y 443. | No hay que hacer nada | 
+| DNS de respaldo | Añadir DNS de respaldo | `resolvectl status\|grep Fallback` devuelve `Fallback DNS Servers: 1.1.1.1` similar. Si no está configurado devuelve vacío. | No hay que hacer nada | 
+
+TODO: Cuando tengamos OpenNebula funcionando veremos la dificultad de montar un NFS
+
+
+
+Enlaces:
+- [Actualizaciones automáticas en nuestro equipo con unattended-upgrades](https://geekland.eu/actualizaciones-automaticas-en-nuestro-equipo-con-unattended-upgrades/)
+- [How To Set Up a Firewall with UFW on Debian 11](https://www.digitalocean.com/community/tutorials/how-to-set-up-a-firewall-with-ufw-on-debian)
+- [https://wiki.archlinux.org/title/Systemd-resolved](systemd-resolved). Aquí no indican que hay que reinicar el servicio para que lea los nuevos DNS con `systemctl restart systemd-resolved.service` 
 
 # Dudas para el Servicio de Informática
 * Forzar a tener una imagen sin interfaz gráfica
