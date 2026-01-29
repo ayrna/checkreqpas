@@ -59,17 +59,48 @@ Comprobar que se ha realizado esto: https://www.uco.es/users/i02samoj/plazatu/pa
 
 
 
+
 ## Tema 5: Gestión de recursos del sistema
 
 | Prueba | Requisito | Cómo probarlo | Cómo generarlo | 
 | --- | --- | --- | --- | 
 | Limitar el número de procesos para usuarios | Directiva `ulimit` | Por línea de comandos comprobar que `ulimit` no devuelve `unlimited` (1000 sería un buen valor aquí)| `unlimited` es el valor por defecto | 
+| Monitorización memoria | Script que vuelque a un fichero de log la cantidad de memoria física y virtual cada 10 minutos usando crontab o systemd | Comprobar que existe y no está vacío `/opt/monitor_memoria/script_memoria.sh`, `/var/log/memoria.log` y comprobar la línea de crontab del usuario (e.j. `/var/spool/cron/crontabs/root`) | No hay que hacer nada. | 
+
+
+```bash
+# 1. Guardar el script en un directorio adecuado
+sudo mkdir -p /opt/monitor_memoria
+sudo mv script_memoria.sh /opt/monitor_memoria/
+
+# 2. Dar permisos
+sudo chmod +x /opt/monitor_memoria/script_memoria.sh
+
+# 3. Configurar crontab
+sudo crontab -e
+# Agregar: */10 * * * * /opt/monitor_memoria/script_memoria.sh
+# Esto se guarda en  /var/spool/cron/crontabs/USUARIO (en este ejemplo /var/spool/cron/crontabs/root)
+
+# 4. Verificar el log
+tail -f /var/log/memoria.log
+```
+
 
 Enlaces: 
 - <https://www.cyberciti.biz/faq/understanding-bash-fork-bomb/>
 - <https://www.geeksforgeeks.org/linux-unix/limits-conf-file-to-limit-users-process-in-linux-with-examples/>
+- <https://www.linuxbash.sh/post/how-to-create-a-bash-script-to-monitor-system-resources>
 
 
+## Tema 7: Administración de sistemas de ficheros
+
+| Prueba | Requisito | Cómo probarlo | Cómo generarlo | 
+| --- | --- | --- | --- | 
+| Cuotas instaladas | Instalado el paquete `quota` | Comprobar que está instalado | No hay que hacer nada | 
+| Cuotas activadas en el sistema de ficheros | El usuario debe haber activado con `tune2fs -O quota /dev/sda3` | Si no están activadas esto devuelve una línea vacía `sudo tune2fs -l /dev/sda3 BARRA grep -i quota` | No hay que hacer nada | 
+| Probar quotas (TODO) | Script que escriba en disco un fichero enorme | `fallocate --length 2000MB ~/fichero` | No hay que hacer nada | 
+
+NOTA: Adaptar el último caso al dispositivo y partición de la imagen de Debian en OpenNebula. Quizás se pueda hacer una tarea que sea poner una etiqueta "RAIZ" o "HOME" y así queda disponible con la etiqueta y en `/dev/disk/by-label/`
 
 
 # Dudas para el Servicio de Informática
