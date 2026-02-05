@@ -1,16 +1,20 @@
 ---
 - name: Auditoría Tema 1 - Introducción a GNU/Linux
   hosts: auditadas
-  become: yes
+  become: no
   gather_facts: no
+
+
+    # ==========================================================
+    # INICIALIZACIÓN
+    #
+    # Creamos el diccionario "checks" donde iremos guardando
+    # el resultado de cada prueba del tema.
+    # ==========================================================
   vars:
     tema_id: "tema1"
 
   tasks:
-
-    # ==========================================
-    # Inicialización (para evitar variables undefined)
-    # ==========================================
     - name: Inicializar estructura de resultados
       set_fact:
         checks: {}
@@ -18,11 +22,21 @@
 
     # =========================
     # PRUEBA 1 - Sudo instalado
+    # Requisito:
+    #   - El paquete sudo debe estar instalado
+    #
+    # Cómo se comprueba:
+    #   - dpkg -s sudo
+    #     * rc == 0  -> paquete instalado
+    #     * rc != 0  -> no instalado
+    #
+    # CORRECTO si:
+    #   - sudo_check.rc == 0
     # =========================
     - name: "[Prueba 1] Comprobar si sudo está instalado"
-      command: dpkg -l sudo
+      command: dpkg -s sudo
       register: sudo_check
-      ignore_errors: yes
+      failed_when: false
       changed_when: false
 
     - name: "[Prueba 1] Guardar resultado"
@@ -32,29 +46,59 @@
 
     # ======================================
     # PRUEBA 2 - Root no por defecto (shadow)
+    #
+    # Requisito:
+    #   - El usuario root NO debe estar bloqueado
+    #   - En /etc/shadow, el campo de contraseña de root:
+    #       * no debe ser '!'
+    #       * no debe ser '*'
+    #
+    # Importante:
+    #   - Esta prueba REQUIERE permisos de root
+    #   - Si sudo NO está instalado, la prueba falla directamente
+    #
+    # CORRECTO si:
+    #   - sudo está instalado
+    #   - el campo de contraseña existe
+    #   - no empieza por '!' ni '*'
+    # ==========================================================
     # ======================================
-    - name: "[Prueba 2] Comprobar hash de root en /etc/shadow"
-      command: grep '^root:' /etc/shadow
-      register: root_shadow
+    - name: "[Prueba 2] Obtener campo de contraseña de root en /etc/shadow (solo si hay sudo)"
+      command: "sudo awk -F: '$1==\"root\"{print $2}' /etc/shadow"
+      register: root_pwfield
+      when: sudo_check.rc == 0
+      failed_when: false
       changed_when: false
 
     - name: "[Prueba 2] Guardar resultado"
       set_fact:
-        checks: "{{ checks | combine({'2': {'name': 'root configurado (hash distinto de !)', 'ok': ((root_shadow.stdout.split(':')[1] | default('')) != '!')}}) }}"
+        checks: "{{ checks | combine({'2': {'name': 'root configurado (no bloqueado)', 'ok': (sudo_check.rc == 0) and (((root_pwfield.stdout | default('')) | length) > 0) and not (((root_pwfield.stdout | default('')) is match('^[!*]')) ) }}) }}"
       changed_when: false
 
     # =========================================
     # PRUEBA 3 - Usuario adminpas en grupo sudo
+    # Requisito:
+    #   - Existe el usuario adminpas
+    #   - adminpas pertenece al grupo sudo
+    #
+    # No requiere root:
+    #   - getent passwd
+    #   - getent group
+    #
+    # CORRECTO si:
+    #   - getent passwd adminpas devuelve rc == 0
+    #   - adminpas aparece en el grupo sudo
     # =========================================
     - name: "[Prueba 3] Comprobar usuario adminpas"
       command: getent passwd adminpas
       register: admin_user
-      ignore_errors: yes
+      failed_when: false
       changed_when: false
 
     - name: "[Prueba 3] Comprobar grupo sudo"
       command: getent group sudo
       register: sudo_group
+      failed_when: false
       changed_when: false
 
     - name: "[Prueba 3] Guardar resultado"
@@ -63,65 +107,87 @@
       changed_when: false
 
     # ==========================
-    # PRUEBA 4 - Servicio SSH (SOLO COMPROBAR)
+    # PRUEBA 4 - Servicio SSH activo
+    #
+    # Importante:
+    #   - No usamos systemctl (no root)
+    #   - Se comprueba indirectamente:
+    #       * si hay algo escuchando en el puerto 22
+    #
+    # Comando:
+    #   ss -tuln | grep :22
+    #
+    # CORRECTO si:
+    #   - hay algún proceso escuchando en el puerto 22
     # ==========================
-    - name: "[Prueba 4] Obtener facts de servicios"
-      service_facts:
+    - name: "[Prueba 4] Comprobar si hay algo escuchando en el puerto 22"
+      shell: "ss -tuln | grep -qE '(:22\\s)'"
+      register: ssh_port
+      failed_when: false
+      changed_when: false
 
     - name: "[Prueba 4] Guardar resultado"
       set_fact:
-        checks: "{{ checks | combine({'4': {'name': 'servicio SSH activo', 'ok': (((ansible_facts.services['ssh.service'].state | default('')) == 'running') or ((ansible_facts.services['sshd.service'].state | default('')) == 'running'))}}) }}"
+        checks: "{{ checks | combine({'4': {'name': 'servicio SSH activo', 'ok': (ssh_port.rc == 0)}}) }}"
       changed_when: false
 
     # ==========================================
     # PRUEBA 5 - Sólo terminal (sin entorno gráfico)
+    # Requisito:
+    #   - NO debe estar instalado Xorg
+    #
+    # Método (sin root):
+    #   - dpkg -s xserver-xorg
+    #
+    # CORRECTO si:
+    #   - xserver-xorg NO está instalado (rc != 0)
     # ==========================================
-    - name: "Comprobar paquetes gráficos instalados"
-      package_facts:
-        manager: auto
-
-    - name: "Comprobar si hay servidor X instalado"
-      set_fact:
-        has_x_server: "{{ ('xserver-xorg' in ansible_facts.packages) or ('xorg' in ansible_facts.packages) }}"
-      changed_when: false
-
-    - name: "Verificar servicios de gestión gráfica"
-      command: systemctl list-units --type=service --no-pager
-      register: services_graphic
-      changed_when: false
-      failed_when: false
-
-    - name: "Establecer presencia de servicios gráficos"
-      set_fact:
-        has_graphic_service: "{{ ('gdm.service' in (services_graphic.stdout | default(''))) or ('lightdm.service' in (services_graphic.stdout | default(''))) or ('sddm.service' in (services_graphic.stdout | default(''))) or ('xdm.service' in (services_graphic.stdout | default(''))) }}"
-      changed_when: false
-
-    - name: "Comprobar si Xorg está presente en el sistema"
-      command: "which Xorg"
-      register: which_xorg
+    - name: "[Prueba 5] Comprobar si hay Xorg instalado"
+      command: dpkg -s xserver-xorg
+      register: xorg_pkg
       failed_when: false
       changed_when: false
 
     - name: "[Prueba 5] Guardar resultado"
       set_fact:
-        checks: "{{ checks | combine({'5': {'name': 'solo terminal (sin entorno gráfico)', 'ok': (not (has_x_server or has_graphic_service or which_xorg.rc == 0))}}) }}"
+        checks: "{{ checks | combine({'5': {'name': 'solo terminal (sin entorno gráfico)', 'ok': (xorg_pkg.rc != 0)}}) }}"
       changed_when: false
 
     # ==============================
     # PRUEBA 6 - Sistema actualizado
+    # Requisito: No debe haber paquetes pendientes de actualizacion
+    # Correcto si: no aparecen lineas "upgradable from:" apt list --upgradable 
     # ==============================
     - name: "[Prueba 6] Comprobar actualizaciones pendientes"
       command: apt list --upgradable
       register: updates
+      failed_when: false
       changed_when: false
 
     - name: "[Prueba 6] Guardar resultado"
       set_fact:
-        checks: "{{ checks | combine({'6': {'name': 'sistema actualizado (sin upgradables)', 'ok': ((updates.stdout_lines | length) <= 1)}}) }}"
+        checks: >-
+          {{
+            checks | combine({
+              '6': {
+                'name': 'sistema actualizado (sin upgradables)',
+                'ok': (
+                  (updates.rc | default(1)) == 0
+                  and
+                  (
+                    (updates.stdout | default('') | regex_findall('upgradable from:') | length) == 0
+                  )
+                )
+              }
+            })
+          }}
       changed_when: false
 
+
+
     # ==========================
-    # SCORE FINAL (SIN variables intermedias)
+    # SCORE FINAL
+    # Se calcula el total de pruebas, el numero de pruebas correctas y el porcentaje obtenido
     # ==========================
     - name: Calcular score final
       set_fact:
@@ -137,9 +203,12 @@
           - "{% for item in (checks | dict2items | sort(attribute='key')) %}Prueba {{ item.key }} ({{ item.value.name }}): {{ 'CORRECTO' if item.value.ok else 'INCORRECTO' }}{% if not loop.last %}\n{% endif %}{% endfor %}"
           - "SCORE: {{ passed_checks }}/{{ total_checks }} ({{ percent_score }}%)"
 
-    # ==========================
-    # EXPORTAR CSV en AUDITORA
-    # ==========================
+
+      # ==========================
+      # EXPORTAR CSV (máquina auditora)
+      # Se exportan los resultados a CSV en la maquina auditora usando un script
+      # ==========================
+
     - name: Exportar CSV en la máquina auditora
       import_tasks: /home/tfg-audit/hosts/export_csv.yml
       vars:

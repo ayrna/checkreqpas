@@ -1,0 +1,235 @@
+---
+- name: Tema 7 - Administración de sistemas de ficheros (Cuotas)
+  hosts: auditadas
+  
+  # Necesitamos root para:
+  # - dpkg -s quota
+  # - leer /dev/disk/by-label/*
+  # - ejecutar tune2fs -l
+  # - ejecutar el script de prueba (y poder crear el fichero grande)
+  
+  become: yes
+  gather_facts: no
+
+  vars:
+    tema_id: "tema7"
+
+
+    # En los apuntes la prueba habla de /dev/sda3, pero en una VM
+    # puede ser /dev/sda1 o cualquier otra partición.
+    #
+    # Para hacerlo portable, buscamos el dispositivo por LABEL:
+    #   /dev/disk/by-label/HOME   o   /dev/disk/by-label/RAIZ
+    
+    quota_label: "HOME"   #  RAIZ/HOME según lo que se defina en la imagen
+
+    # Ruta del script que debe existir y contener "fallocate".
+    quota_script: "/opt/quota_test/script_quota.sh"
+
+    # Ruta del fichero esperado
+    quota_test_file: "/home/{{ ansible_user | default('vboxuser') }}/fichero"
+    # Tamaño objetivo del fichero de prueba
+    quota_test_size_bytes: 2000000000   # 2GB 
+  tasks:
+
+    # ==========================================
+    # Inicialización
+    #Creamos el diccionario checks vacio para evitar errores de variables no definidas, 
+    #aqui es donde añadimos los resultados de cada prueba
+    # ==========================================
+    - name: Inicializar estructura de resultados
+      set_fact:
+        checks: {}
+      changed_when: false
+
+    #################################
+    # PRUEBA 1 - Paquete quota instalado
+    # REQUISITO:
+    #   Debe estar instalado el paquete "quota".
+    #
+    # CÓMO SE PRUEBA:
+    #   dpkg -s quota
+    #
+    # CORRECTO si:
+    #   el comando devuelve rc == 0
+    #################################
+
+    - name: "[Prueba 1] Comprobar paquete quota instalado"
+      command: dpkg -s quota
+      register: quota_pkg
+      failed_when: false
+      changed_when: false
+
+    - name: "[Prueba 1] Guardar resultado"
+      set_fact:
+        checks: "{{ checks | combine({'1': {'name': 'paquete quota instalado', 'ok': (quota_pkg.rc == 0)}}) }}"
+      changed_when: false
+
+    #################################
+    # PRUEBA 2 - Quotas activadas en el sistema de ficheros (por LABEL)
+    # REQUISITO:
+    #   Las cuotas deben estar activadas en el sistema de ficheros.
+    #
+    #   Usamos un LABEL conocido (HOME/RAIZ) y resolvemos:
+    #     /dev/disk/by-label/<LABEL>
+    #
+    #  Se prueba con:
+    #   sudo tune2fs -l /dev/disk/by-label/<LABEL> | grep -i quota
+    #
+    # CORRECTO si:
+    #   - existe el path /dev/disk/by-label/<LABEL>
+    #   - tune2fs -l contiene la palabra "quota" 
+    #################################
+    - name: "[Prueba 2] Resolver dispositivo por label"
+      stat:
+        path: "/dev/disk/by-label/{{ quota_label }}"
+      register: label_path
+      failed_when: false
+      changed_when: false
+
+
+    #Solo ejecutamos si existe el link por label
+    - name: "[Prueba 2] Ejecutar tune2fs -l sobre el dispositivo (si existe label)"
+      command: "tune2fs -l /dev/disk/by-label/{{ quota_label }}"
+      register: tune2fs_out
+      when: label_path.stat.exists | default(false)
+      failed_when: false
+      changed_when: false
+
+    # Marcamos si encontramos "quota" en la salida 
+    - name: "[Prueba 2] Filtrar quota en salida de tune2fs"
+      set_fact:
+        quota_flag_found: "{{ (tune2fs_out.stdout | default('') | lower) is search('quota') }}"
+      when: label_path.stat.exists | default(false)
+      changed_when: false
+
+    - name: "[Prueba 2] Guardar resultado"
+      set_fact:
+        checks: >-
+          {{
+            checks | combine({
+              '2': {
+                'name': 'cuotas activadas en FS (tune2fs muestra quota) usando by-label',
+                'ok': (
+                  (label_path.stat.exists | default(false))
+                  and (quota_flag_found | default(false))
+                )
+              }
+            })
+          }}
+      changed_when: false
+
+    #################################
+    # PRUEBA 3 - Probar quotas (script + ejecución)
+    # REQUISITO:
+    #   Debe existir un script que intente escribir un fichero de 2GB.
+    #
+    # CORRECTO si:
+    #   - el script existe
+    #   - el script contiene la palabra "fallocate"
+    #   - al ejecutarlo ocurre :
+    #       A) crea un fichero >= 2GB
+    #       o
+    #       B) falla con "Disk quota exceeded" (indicando cuota activa)
+    #################################
+    - name: "[Prueba 3] Comprobar que existe el script"
+      stat:
+        path: "{{ quota_script }}"
+      register: quota_script_stat
+      failed_when: false
+      changed_when: false
+
+    # Leemos el script si existe
+    - name: "[Prueba 3] Leer script "
+      slurp:
+        src: "{{ quota_script }}"
+      register: quota_script_content
+      when: quota_script_stat.stat.exists | default(false)
+      failed_when: false
+      changed_when: false
+
+    # Ejecutamos el script y guardamos stdout
+    - name: "[Prueba 3] Ejecutar script "
+      command: "bash {{ quota_script }}"
+      register: quota_run
+      when: quota_script_stat.stat.exists | default(false)
+      failed_when: false
+      changed_when: false
+
+
+    #Comprobamos el tamaño del fichero 
+    - name: "[Prueba 3] stat fichero generado "
+      stat:
+        path: "{{ quota_test_file }}"
+      register: quota_file_stat
+      failed_when: false
+      changed_when: false
+
+    - name: "[Prueba 3] Guardar resultado"
+      set_fact:
+        checks: >-
+          {{
+            checks | combine({
+              '3': {
+                'name': 'test quotas (script fallocate y resultado observable)',
+                'ok': (
+                  (quota_script_stat.stat.exists | default(false))
+                  and (
+                    (
+                      (
+                        (quota_script_content.content | default('') | b64decode)
+                        is search('fallocate')
+                      )
+                    )
+                  )
+                  and (
+                    (
+                      (quota_file_stat.stat.exists | default(false))
+                      and ((quota_file_stat.stat.size | default(0)) | int >= quota_test_size_bytes)
+                    )
+                    or
+                    (
+                      (quota_run.stderr | default('')) is search('Disk quota exceeded')
+                    )
+                  )
+                )
+              }
+            })
+          }}
+      changed_when: false
+
+    # ==========================
+    # SCORE FINAL
+    # Se calcula el total de pruebas, el numero de pruebas correctas y el porcentaje obtenido
+    # ==========================
+    - name: Calcular score final
+      set_fact:
+        total_checks: "{{ checks | length }}"
+        passed_checks: "{{ (checks | dict2items | selectattr('value.ok','equalto',true) | list | length) | int }}"
+        percent_score: >-
+          {{
+            (
+              ((checks | dict2items | selectattr('value.ok','equalto',true) | list | length) | int) * 100
+              / ((checks | length) | int if ((checks | length) | int) > 0 else 1)
+            ) | round(0) | int
+          }}
+      changed_when: false
+
+    - name: Mostrar resultados (resumen)
+      debug:
+        msg:
+          - "Tema: {{ tema_id }} Host: {{ inventory_hostname }}"
+          - "{% for item in (checks | dict2items | sort(attribute='key')) %}Prueba {{ item.key }} ({{ item.value.name }}): {{ 'CORRECTO' if item.value.ok else 'INCORRECTO' }}{% if not loop.last %}\n{% endif %}{% endfor %}"
+          - "SCORE: {{ passed_checks }}/{{ total_checks }} ({{ percent_score }}%)"
+
+    # ==========================
+    # EXPORTAR CSV en AUDITORA
+    # Se exportan los resultados a CSV en la maquina auditora usando un script
+    # ==========================
+    - name: Exportar CSV en la máquina auditora
+      import_tasks: /home/tfg-audit/hosts/export_csv.yml
+      vars:
+        checks: "{{ checks }}"
+        passed_checks: "{{ passed_checks }}"
+        total_checks: "{{ total_checks }}"
+        percent_score: "{{ percent_score }}"

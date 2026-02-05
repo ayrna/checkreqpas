@@ -1,0 +1,172 @@
+---
+- name: Tema 4 - Arranque y parada
+  hosts: auditadas
+
+  #Necesitamos privilegios de root para: Leer configuracion de GRUB y acceder a /boot/grub/grub.cfg
+  become: yes
+  gather_facts: no
+
+  vars:
+    tema_id: "tema4"
+
+  tasks:
+    # ==========================================
+    # Inicialización
+    # ==========================================
+    #Creamos el diccionario checks vacio para evitar errores de variables no definidas, 
+    #aqui es donde añadimos los resultados de cada prueba
+
+    - name: Inicializar estructura de resultados
+      set_fact:
+        checks: {}
+      changed_when: false
+
+    #################################
+    # PRUEBA 1 - GRUB timeout = 0
+
+    # REQUISITO:
+    #   El tiempo de espera del GRUB debe ser 0.
+    #
+    # CÓMO SE GENERA:
+    #   - Editar /etc/default/grub
+    #   - Poner GRUB_TIMEOUT=0
+    #   - Ejecutar sudo update-grub
+    #
+    # CÓMO SE COMPRUEBA:
+    #   1) Se lee GRUB_TIMEOUT desde /etc/default/grub
+    #   2) Se comprueba que en /boot/grub/grub.cfg aparece
+    #      al menos una línea "set timeout=0"
+    #################################
+
+
+
+    # Leemos la última aparición de GRUB_TIMEOUT en /etc/default/grub.
+    # Usamos tail -n 1 por si el fichero tiene varias definiciones.
+
+    - name: "[Prueba 1] Leer GRUB_TIMEOUT desde /etc/default/grub"
+      shell: "grep -E '^[[:space:]]*GRUB_TIMEOUT=' /etc/default/grub | tail -n 1"
+      register: grub_default_line
+      failed_when: false
+      changed_when: false
+
+# Extraemos solo el valor numérico del timeout (ej: 0, 5, etc).
+# El uso de regex_findall + default evita errores si no existe.
+
+    - name: "[Prueba 1] Extraer valor numérico de GRUB_TIMEOUT "
+      set_fact:
+        grub_timeout_value: >-
+          {{
+            (grub_default_line.stdout | default(''))
+            | regex_findall('GRUB_TIMEOUT=([0-9]+)')
+            | first
+            | default('')
+          }}
+      changed_when: false
+
+
+    # Verificamos que el cambio se haya aplicado realmente en grub.cfg,
+    # lo cual solo ocurre tras ejecutar update-grub.
+    - name: "[Prueba 1] Comprobar que grub.cfg refleja timeout=0 "
+      shell: "grep -E '^[[:space:]]*set[[:space:]]+timeout=0' /boot/grub/grub.cfg | head -n 1"
+      register: grub_cfg_timeout0
+      failed_when: false
+      changed_when: false
+
+    # - GRUB_TIMEOUT vale exactamente 0
+    # - Y existe al menos una línea "set timeout=0" en grub.cfg
+
+    - name: "[Prueba 1] Guardar resultado"
+      set_fact:
+        checks: >-
+          {{
+            checks | combine({
+              '1': {
+                'name': 'GRUB timeout a 0 (config en /etc/default/grub y aplicado en grub.cfg)',
+                'ok': (
+                  (grub_timeout_value | string) == '0'
+                  and ((grub_cfg_timeout0.rc | default(1)) == 0)
+                )
+              }
+            })
+          }}
+      changed_when: false
+
+    #################################
+    # PRUEBA 2 - Servicio systemd UDP 10000 (ejemplo PHP tutorial)
+    
+    # REQUISITO:
+    #   Existe un servicio systemd que escucha en UDP 10000
+    #   y responde "ubyn" cuando recibe "hola".
+    #
+    # CÓMO SE GENERA:
+    #   Siguiendo el tutorial proporcionado.
+    #
+    # CÓMO SE COMPRUEBA:
+    #   echo hola | nc -u 127.0.0.1 10000
+    #   La salida debe ser exactamente "ubyn".
+    #################################
+
+
+
+
+
+    # Enviamos "hola" por UDP al puerto 10000.
+    # -w 1 evita bloqueos si el servicio no responde.
+    - name: "[Prueba 2] Probar servicio UDP 10000 (respuesta esperada: ubyn)"
+      shell: "echo hola | nc -u -w 1 127.0.0.1 10000 2>/dev/null"
+      register: udp_test
+      failed_when: false
+      changed_when: false
+
+
+    #Es correcto si la salida es "ubyn"
+    - name: "[Prueba 2] Guardar resultado"
+      set_fact:
+        checks: >-
+          {{
+            checks | combine({
+              '2': {
+                'name': 'servicio systemd (UDP 10000) responde "ubyn"',
+                'ok': ( (udp_test.stdout | default('') | trim) == 'ubyn' )
+              }
+            })
+          }}
+      changed_when: false
+
+    # ==========================
+    # SCORE FINAL
+    # Se calcula el total de pruebas, el numero de pruebas correctas y el porcentaje obtenido
+    # ==========================
+    - name: Calcular score final
+      set_fact:
+        total_checks: "{{ checks | length }}"
+        passed_checks: "{{ (checks | dict2items | selectattr('value.ok','equalto',true) | list | length) | int }}"
+        percent_score: >-
+          {{
+            (
+              ((checks | dict2items | selectattr('value.ok','equalto',true) | list | length) | int) * 100
+              / ((checks | length) | int if ((checks | length) | int) > 0 else 1)
+            ) | round(0) | int
+          }}
+      changed_when: false
+
+
+    # Mostramos un resumen por pantalla
+    - name: Mostrar resultados (resumen)
+      debug:
+        msg:
+          - "Tema: {{ tema_id }} Host: {{ inventory_hostname }}"
+          - "{% for item in (checks | dict2items | sort(attribute='key')) %}Prueba {{ item.key }} ({{ item.value.name }}): {{ 'CORRECTO' if item.value.ok else 'INCORRECTO' }}{% if not loop.last %}\n{% endif %}{% endfor %}"
+          - "SCORE: {{ passed_checks }}/{{ total_checks }} ({{ percent_score }}%)"
+
+    # ==========================
+    # EXPORTAR CSV en AUDITORA
+    # Se exportan los resultados a CSV en la maquina auditora usando un script
+    # ==========================
+    - name: Exportar CSV en la máquina auditora
+      import_tasks: /home/tfg-audit/hosts/export_csv.yml
+      vars:
+        checks: "{{ checks }}"
+        passed_checks: "{{ passed_checks }}"
+        total_checks: "{{ total_checks }}"
+        percent_score: "{{ percent_score }}"

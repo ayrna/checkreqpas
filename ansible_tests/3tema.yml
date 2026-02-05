@@ -1,154 +1,272 @@
+---
 - name: Tema 3 - Gestión de Usuarios
   hosts: auditadas
   become: yes
   gather_facts: no
 
+  vars:
+    tema_id: "tema3"
+
+    # Hash inicial conocido del usuario "manzana"
+    # Se usa como referencia para comprobar que el alumno
+    # ha cambiado la contraseña posteriormente
+    manzana_hash_inicial: "$y$j9T$sy11gN7ZR/pC8vhl8iTwZ/$2o5hWAPNQ8EUBST8LqqIXyd5DdDMM3ze04kdbh0t.4D"
+
+    manzana_hash_inicial: "$y$j9T$sy11gN7ZR/pC8vhl8iTwZ/$2o5hWAPNQ8EUBST8LqqIXyd5DdDMM3ze04kdbh0t.4D"
+
   tasks:
 
-    #################################
-    # PRUEBA 1 - Cracklib instalado
-    #################################
-    - name: "[Prueba 1] Comprobar Cracklib"
-      package_facts:
+    # ==========================================
+    # Inicialización
+    #Creamos el diccionario checks vacio para evitar errores de variables no definidas, 
+    #aqui es donde añadimos los resultados de cada prueba
+    # ==========================================
+    - name: Inicializar estructura de resultados
+      set_fact:
+        checks: {}
+      changed_when: false
 
-    - name: "[Prueba 1] Resultado"
-      debug:
-        msg: >
-          PRUEBA 1 (Cracklib instalado):
+    #################################
+    # PRUEBA 1 - pwquality/cracklib instalado
+    #
+    #CORRECTO si:  existe uno de los paquetes indicados para asegurarnos de una buena politica de contraseñas
+    #################################
+    - name: "[Prueba 1] Obtener paquetes instalados"
+      package_facts:
+        manager: auto
+
+    - name: "[Prueba 1] Guardar resultado"
+      set_fact:
+        checks: >-
           {{
-            'CORRECTO'
-            if ('libpwquality-common' in ansible_facts.packages)
-               or ('libpwquality1' in ansible_facts.packages)
-            else 'INCORRECTO'
+            checks | combine({
+              '1': {
+                'name': 'pwquality/cracklib instalado',
+                'ok': (
+                  ('libpwquality-common' in ansible_facts.packages)
+                  or ('libpwquality1' in ansible_facts.packages)
+                  or ('libpam-pwquality' in ansible_facts.packages)
+                  or ('cracklib-runtime' in ansible_facts.packages)
+                  or ('libcrack2' in ansible_facts.packages)
+                )
+              }
+            })
           }}
+      changed_when: false
 
     #################################
     # PRUEBA 2 - Permisos ficheros críticos
+    #
+    # CORRECTO si: /etc/passwd y /etc/group tienen permisos 0644 y /etc/shadow tiene permisos 0640 o 0600
+    # 
     #################################
-    - name: Obtener estado de /etc/passwd
+    
+    
+    - name: "[Prueba 2] stat /etc/passwd"
       stat:
         path: /etc/passwd
       register: passwd_stat
+      changed_when: false
 
-    - name: Obtener estado de /etc/group
+
+
+    - name: "[Prueba 2] stat /etc/group"
       stat:
         path: /etc/group
       register: group_stat
+      changed_when: false
 
-    - name: Obtener estado de /etc/shadow
+    - name: "[Prueba 2] stat /etc/shadow"
       stat:
         path: /etc/shadow
       register: shadow_stat
+      changed_when: false
 
-    - name: "[Prueba 2] Resultado"
-      debug:
-        msg: >
-          PRUEBA 2 (permisos usuarios):
+    - name: "[Prueba 2] Guardar resultado"
+      set_fact:
+        checks: >-
           {{
-            'CORRECTO'
-            if ((passwd_stat.stat.mode) == '0644')
-            and ((group_stat.stat.mode) == '0644')
-            and ((shadow_stat.stat.mode) == '0640')
-            else 'INCORRECTO'
+            checks | combine({
+              '2': {
+                'name': 'permisos /etc/passwd,/etc/group,/etc/shadow seguros',
+                'ok': (
+                  (passwd_stat.stat.exists | default(false))
+                  and (group_stat.stat.exists | default(false))
+                  and (shadow_stat.stat.exists | default(false))
+                  and (passwd_stat.stat.mode == '0644')
+                  and (group_stat.stat.mode == '0644')
+                  and (shadow_stat.stat.mode in ['0640', '0600'])
+                )
+              }
+            })
           }}
+      changed_when: false
 
     #################################
-    # PRUEBA 3 - Contraseña robusta y cambio de usuario "manzana"
+    # PRUEBA 3 - Usuario manzana: contraseña cambiada
+    # CORRECTO si:existe manzana y su hash actual != hash inicial conocido
     #################################
+    - name: "[Prueba 3] Comprobar si existe usuario manzana"
+      command: getent passwd manzana
+      register: manzana_exists
+      failed_when: false
+      changed_when: false
 
-    - name: Comprobar existencia de usuario manzana
-      getent:
-        database: passwd
-        key: manzana
-      register: manzana_user
-      ignore_errors: yes
-
-    - name: Obtener hash de /etc/shadow si el usuario existe
+    - name: "[Prueba 3] Obtener línea de /etc/shadow de manzana (si existe)"
       command: grep '^manzana:' /etc/shadow
-      register: manzana_shadow
-      when: manzana_user is succeeded
-      ignore_errors: yes
+      register: manzana_shadow_line
+      when: manzana_exists.rc == 0
+      failed_when: false
+      changed_when: false
 
-    - name: "[Prueba 3] Resultado"
-      debug:
-        msg: >
-          PRUEBA 3 (cambio de contraseña usuario manzana):
+    - name: "[Prueba 3] Extraer hash actual de manzana"
+      set_fact:
+        manzana_hash_actual: "{{ (manzana_shadow_line.stdout | default('') ).split(':')[1] | default('') }}"
+      when: manzana_exists.rc == 0
+      changed_when: false
+
+    - name: "[Prueba 3] Guardar resultado"
+      set_fact:
+        checks: >-
           {{
-            'CORRECTO'
-            if manzana_user.failed
-            or (manzana_shadow.stdout | regex_search('^manzana:[^:]+') | default('') != 'manzana:$y$j9T$dpDEoZU/u.os0HHRrGnS.0$C6LmBxj5NCSnk0l/Kifvqdl8DuBLmOdLZaNd0esxRiC')
-            else 'INCORRECTO'
+            checks | combine({
+              '3': {
+                'name': 'manzana: contraseña cambiada (hash distinto al inicial)',
+                'ok': (
+                  (manzana_exists.rc == 0)
+                  and (manzana_hash_actual | default('') != manzana_hash_inicial)
+                )
+              }
+            })
           }}
-
+      changed_when: false
 
     #################################
-    # PRUEBA 4 - Caducidad usuario becario
+    # PRUEBA 4 - Usuario becario: caducidad en septiembre
+    # CORRECTO si: existe becario y chage muestra Sep o sep 
     #################################
-    - name: Comprobar si existe usuario becario
-      getent:
-        database: passwd
-        key: becario
-      register: becario_user
-      ignore_errors: yes
+    - name: "[Prueba 4] Comprobar si existe usuario becario"
+      command: getent passwd becario
+      register: becario_exists
+      failed_when: false
+      changed_when: false
 
-    - name: Obtener caducidad de becario
+    - name: "[Prueba 4] chage -l becario (si existe)"
       command: chage -l becario
       register: becario_chage
-      when: becario_user is succeeded
-      ignore_errors: yes
+      when: becario_exists.rc == 0
+      failed_when: false
+      changed_when: false
 
-    - name: "[Prueba 4] Caducidad usuario becario"
-      debug:
-        msg: >
-          PRUEBA 4 (caducidad usuario becario):
+    - name: "[Prueba 4] Guardar resultado"
+      set_fact:
+        checks: >-
           {{
-            'CORRECTO'
-            if becario_user is succeeded
-            and 'Sep' in becario_chage.stdout
-            else 'INCORRECTO'
+            checks | combine({
+              '4': {
+                'name': 'becario: cuenta caduca en septiembre',
+                'ok': (
+                  (becario_exists.rc == 0)
+                  and ('Sep' in (becario_chage.stdout | default('')))
+                )
+              }
+            })
           }}
+      changed_when: false
 
     #################################
-    # PRUEBA 5 - Cuenta web restrictiva
+    # PRUEBA 5 - Cuenta web (www-data) restrictiva + ficheros apache seguros
+    # CORRECTO si: apache2 esta instalado
+    #  - usuario www-data existe y shell es nologin/false
+    #  - /etc/apache2/apache2.conf root:root 0644
+    #  - /lib/systemd/system/apache2.service 0644
     #################################
-
-    - name: Comprobar existencia de Apache
+    - name: "[Prueba 5] ¿Está apache2 instalado?"
       command: dpkg -l apache2
       register: apache_check
-      ignore_errors: yes
+      failed_when: false
+      changed_when: false
 
-    - name: Obtener usuario www-data
-      getent:
-        database: passwd
-        key: www-data
-      register: web_user
+    - name: "[Prueba 5] getent passwd www-data (si apache instalado)"
+      command: getent passwd www-data
+      register: wwwdata_passwd
       when: apache_check.rc == 0
-      ignore_errors: yes
+      failed_when: false
+      changed_when: false
 
-    - name: Comprobar permisos apache2.conf
+    - name: "[Prueba 5] Extraer shell de www-data"
+      set_fact:
+        wwwdata_shell: "{{ (wwwdata_passwd.stdout | default('')).split(':')[-1] | default('') }}"
+      when: apache_check.rc == 0
+      changed_when: false
+
+    - name: "[Prueba 5] stat apache2.conf"
       stat:
         path: /etc/apache2/apache2.conf
       register: apache_conf
       when: apache_check.rc == 0
+      failed_when: false
+      changed_when: false
 
-    - name: Comprobar permisos apache2.service
+    - name: "[Prueba 5] stat apache2.service"
       stat:
         path: /lib/systemd/system/apache2.service
       register: apache_service
       when: apache_check.rc == 0
+      failed_when: false
+      changed_when: false
 
-    - name: "[Prueba] Resultado cuenta web restrictiva"
-      debug:
-        msg: >
-          PRUEBA (cuenta web restrictiva):
+    - name: "[Prueba 5] Guardar resultado"
+      set_fact:
+        checks: >-
           {{
-            'CORRECTO'
-            if apache_check.rc == 0
-            and web_user is succeeded
-            and web_user.passwd.shell in ['/usr/sbin/nologin', '/bin/false']
-            and apache_conf.stat.pw_name == 'root'
-            and apache_conf.stat.gr_name == 'root'
-            and apache_conf.stat.mode == '0644'
-            and apache_service.stat.mode == '0644'
-            else 'INCORRECTO'
+            checks | combine({
+              '5': {
+                'name': 'www-data restrictivo + permisos apache seguros',
+                'ok': (
+                  (apache_check.rc == 0)
+                  and ((wwwdata_passwd.rc | default(1)) == 0)
+                  and (wwwdata_shell in ['/usr/sbin/nologin', '/bin/false'])
+
+                  and (apache_conf.stat.exists | default(false))
+                  and (apache_conf.stat.pw_name | default('') == 'root')
+                  and (apache_conf.stat.gr_name | default('') == 'root')
+                  and (apache_conf.stat.mode | default('') == '0644')
+
+                  and (apache_service.stat.exists | default(false))
+                  and (apache_service.stat.mode | default('') == '0644')
+                )
+              }
+            })
           }}
+      changed_when: false
+
+    # ==========================
+    # SCORE FINAL
+    # Se calcula el total de pruebas, el numero de pruebas correctas y el porcentaje obtenido
+    # ==========================
+    - name: Calcular score final
+      set_fact:
+        total_checks: "{{ checks | length }}"
+        passed_checks: "{{ (checks | dict2items | selectattr('value.ok','equalto',true) | list | length) | int }}"
+        percent_score: "{{ (( (checks | dict2items | selectattr('value.ok','equalto',true) | list | length) | int ) * 100 / ((checks | length) | int if ((checks | length) | int) > 0 else 1)) | round(0) | int }}"
+      changed_when: false
+
+    - name: Mostrar resultados (resumen)
+      debug:
+        msg:
+          - "Tema: {{ tema_id }} Host: {{ inventory_hostname }}"
+          - "{% for item in (checks | dict2items | sort(attribute='key')) %}Prueba {{ item.key }} ({{ item.value.name }}): {{ 'CORRECTO' if item.value.ok else 'INCORRECTO' }}{% if not loop.last %}\n{% endif %}{% endfor %}"
+          - "SCORE: {{ passed_checks }}/{{ total_checks }} ({{ percent_score }}%)"
+
+    # ==========================
+    # EXPORTAR CSV en AUDITORA
+    # Se exportan los resultados a CSV en la maquina auditora usando un script
+    # ==========================
+    - name: Exportar CSV en la máquina auditora
+      import_tasks: /home/tfg-audit/hosts/export_csv.yml
+      vars:
+        checks: "{{ checks }}"
+        passed_checks: "{{ passed_checks }}"
+        total_checks: "{{ total_checks }}"
+        percent_score: "{{ percent_score }}"

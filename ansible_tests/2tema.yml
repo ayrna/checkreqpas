@@ -1,7 +1,7 @@
 ---
 - name: Auditoría Tema 2 - Organización del sistema
   hosts: auditadas
-  become: yes
+  become: yes # Necesario para acceder a directorios protegidos
   gather_facts: no
 
   vars:
@@ -10,6 +10,8 @@
   tasks:
     # ==========================================
     # Inicialización
+    # Creamos el diccionario checks vacio para evitar errores de variables no definidas, 
+    #aqui es donde añadimos los resultados de cada prueba
     # ==========================================
     - name: Inicializar estructura de resultados
       set_fact:
@@ -18,6 +20,19 @@
 
     #################################
     # PRUEBA 1 - Permisos claves .ssh
+    # Se comprueban los permisos de:
+    #   - /root/.ssh
+    #   - /home/adminpas
+    #   - /home/adminpas/.ssh
+    #
+    # Requisitos:
+    #   - /root/.ssh          -> 0700
+    #   - /home/adminpas      -> 0755
+    #   - /home/adminpas/.ssh -> 0700
+    #
+    # CORRECTO solo si:
+    #   - todos los directorios existen
+    #   - todos tienen exactamente los permisos esperados
     #################################
 
     - name: "[Prueba 1] Comprobar permisos /root/.ssh"
@@ -63,6 +78,16 @@
 
     #################################
     # PRUEBA 2 - Permisos /var/www para grupo web
+    # Requisitos:
+    #   - El directorio /var/www debe existir
+    #   - Propietario: root
+    #   - Grupo: web
+    #   - Permisos: 0775
+    #
+    # CORRECTO solo si:
+    #   - existe el directorio
+    #   - permisos, usuario y grupo coinciden exactamente
+
     #################################
 
     - name: "[Prueba 2] Comprobar /var/www"
@@ -92,6 +117,7 @@
 
     # ==========================
     # SCORE FINAL
+    # Se calcula el total de pruebas, el numero de pruebas correctas y el porcentaje obtenido
     # ==========================
     - name: Calcular score final
       set_fact:
@@ -111,6 +137,7 @@
 
     # ==========================
     # EXPORTAR CSV (máquina auditora)
+    # Se exportan los resultados a CSV en la maquina auditora usando un script
     # ==========================
     - name: Exportar CSV en la máquina auditora
       import_tasks: /home/tfg-audit/hosts/export_csv.yml
