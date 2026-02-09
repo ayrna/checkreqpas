@@ -66,7 +66,7 @@ pulsando nuevamente *Enter*. Esto permite que las auditorías se ejecuten
 de forma no interactiva.
 
 ![Proceso de generación de una clave SSH en la máquina
-auditora.](Imagenes/ssh-keygen.png){#fig:ssh-keygen
+auditora.](pic/ssh-keygen.png){#fig:ssh-keygen
 width="0.9\\linewidth"}
 
 Una vez generada la clave, esta debe copiarse a cada máquina auditada
@@ -85,7 +85,7 @@ reference="fig:ssh-copy-id"} se muestra un ejemplo del proceso de
 generación de la clave SSH.
 
 ![Proceso de copiado de clave al servidor
-.](Imagenes/ssh-copy-id.png){#fig:ssh-copy-id width="0.9\\linewidth"}
+.](pic/ssh-copy-id.png){#fig:ssh-copy-id width="0.9\\linewidth"}
 
 ### Python y Panel
 
@@ -280,7 +280,7 @@ facilita la interpretación rápida de los resultados por parte del
 profesorado.
 
 ![Ejemplo del *dashboard* mostrando los resultados de una
-auditoría](Imagenes/dashboard.png){#fig:dashboard width="90%"}
+auditoría](pic/dashboard.png){#fig:dashboard width="90%"}
 
 ## Extensión del sistema de auditoría
 
