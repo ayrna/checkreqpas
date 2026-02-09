@@ -4,7 +4,7 @@ import panel as pn
 
 pn.extension("tabulator")
 
-BASE_DIR = "/home/tfg-audit/resultados_csv"  # <-- ajusta si hace falta
+BASE_DIR = "/ruta/a/resultados_csv"  # <-- ajusta si hace falta
 
 # =========================
 # Helpers
