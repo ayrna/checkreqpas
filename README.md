@@ -66,8 +66,7 @@ pulsando nuevamente *Enter*. Esto permite que las auditorías se ejecuten
 de forma no interactiva.
 
 ![Proceso de generación de una clave SSH en la máquina
-auditora.](pic/ssh-keygen.png){#fig:ssh-keygen
-width="0.9\\linewidth"}
+auditora.](pic/ssh-keygen.png)
 
 Una vez generada la clave, esta debe copiarse a cada máquina auditada
 utilizando el siguiente comando:
@@ -80,12 +79,11 @@ Este procedimiento añade automáticamente la clave pública al fichero
 `authorized_keys` del usuario remoto, permitiendo el acceso mediante SSH
 sin necesidad de contraseña.
 
-En la Figura [1.2](#fig:ssh-copy-id){reference-type="ref"
-reference="fig:ssh-copy-id"} se muestra un ejemplo del proceso de
+En la Figura [1.2](#fig:ssh-copy-id) se muestra un ejemplo del proceso de
 generación de la clave SSH.
 
 ![Proceso de copiado de clave al servidor
-.](pic/ssh-copy-id.png){#fig:ssh-copy-id width="0.9\\linewidth"}
+.](pic/ssh-copy-id.png)
 
 ### Python y Panel
 
