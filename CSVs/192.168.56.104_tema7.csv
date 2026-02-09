@@ -1,0 +1,7 @@
+host,tema,prueba_id,descripcion,resultado
+192.168.56.104,tema7,1,paquete quota instalado,OK
+192.168.56.104,tema7,2,cuotas activadas en FS (tune2fs muestra quota) usando by-label,FAIL
+192.168.56.104,tema7,3,test quotas (script fallocate y resultado observable),OK
+
+host,tema,passed,total,score_percent
+192.168.56.104,tema7,2,3,67

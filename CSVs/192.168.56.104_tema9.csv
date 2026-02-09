@@ -1,0 +1,8 @@
+host,tema,prueba_id,descripcion,resultado
+192.168.56.104,tema9,1,unattended-upgrades instalado y auto-upgrades configurado,OK
+192.168.56.104,tema9,2,hostname correcto (loginpas),OK
+192.168.56.104,tema9,3,ufw: active + deny incoming + allow 22/80/443,OK
+192.168.56.104,tema9,4,DNS respaldo: nameserver 1.1.1.1 en /etc/resolv.conf,OK
+
+host,tema,passed,total,score_percent
+192.168.56.104,tema9,4,4,100

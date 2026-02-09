@@ -1,0 +1,9 @@
+host,tema,prueba_id,descripcion,resultado
+192.168.56.104,tema3,1,pwquality/cracklib instalado,OK
+192.168.56.104,tema3,2,permisos /etc/passwd;/etc/group;/etc/shadow seguros,FAIL
+192.168.56.104,tema3,3,manzana: contraseña cambiada (hash distinto al inicial),FAIL
+192.168.56.104,tema3,4,becario: cuenta caduca en septiembre,FAIL
+192.168.56.104,tema3,5,www-data restrictivo + permisos apache seguros,FAIL
+
+host,tema,passed,total,score_percent
+192.168.56.104,tema3,1,5,20

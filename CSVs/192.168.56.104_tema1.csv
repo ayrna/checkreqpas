@@ -1,0 +1,10 @@
+host,tema,prueba_id,descripcion,resultado
+192.168.56.104,tema1,1,sudo instalado,OK
+192.168.56.104,tema1,2,root configurado (no bloqueado),FAIL
+192.168.56.104,tema1,3,usuario adminpas existe y está en grupo sudo,FAIL
+192.168.56.104,tema1,4,servicio SSH activo,OK
+192.168.56.104,tema1,5,solo terminal (sin entorno gráfico),FAIL
+192.168.56.104,tema1,6,sistema actualizado (sin upgradables),OK
+
+host,tema,passed,total,score_percent
+192.168.56.104,tema1,3,6,50

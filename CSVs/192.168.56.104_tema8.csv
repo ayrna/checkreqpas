@@ -1,0 +1,6 @@
+host,tema,prueba_id,descripcion,resultado
+192.168.56.104,tema8,1,backup dump0 existe y restore puede listar,OK
+192.168.56.104,tema8,2,backups programados en crontab (>=2 líneas activas con dump),OK
+
+host,tema,passed,total,score_percent
+192.168.56.104,tema8,2,2,100

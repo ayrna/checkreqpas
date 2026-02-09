@@ -1,0 +1,6 @@
+host,tema,prueba_id,descripcion,resultado
+10.100.203.213,tema4,1,GRUB timeout = 0 (en /boot/grub/grub.cfg),FAIL
+10.100.203.213,tema4,2,Servicio systemd (PHP/UDP) responde \"ubyn\" en 127.0.0.1:10000,FAIL
+
+host,tema,passed,total,score_percent
+10.100.203.213,tema4,0,2,0

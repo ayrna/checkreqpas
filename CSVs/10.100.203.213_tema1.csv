@@ -1,0 +1,10 @@
+host,tema,prueba_id,descripcion,resultado
+10.100.203.213,tema1,1,sudo instalado,OK
+10.100.203.213,tema1,2,root configurado (hash distinto de !),OK
+10.100.203.213,tema1,3,usuario adminpas existe y está en grupo sudo,FAIL
+10.100.203.213,tema1,4,servicio SSH activo,OK
+10.100.203.213,tema1,5,solo terminal (sin entorno gráfico),FAIL
+10.100.203.213,tema1,6,sistema actualizado (sin upgradables),OK
+
+host,tema,passed,total,score_percent
+10.100.203.213,tema1,4,6,67

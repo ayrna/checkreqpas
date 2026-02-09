@@ -1,0 +1,6 @@
+host,tema,prueba_id,descripcion,resultado
+192.168.56.105,tema4,1,GRUB timeout a 0 (config en /etc/default/grub y aplicado en grub.cfg),OK
+192.168.56.105,tema4,2,servicio systemd (UDP 10000) responde "ubyn",OK
+
+host,tema,passed,total,score_percent
+192.168.56.105,tema4,2,2,100

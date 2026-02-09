@@ -1,0 +1,6 @@
+host,tema,prueba_id,descripcion,resultado
+192.168.56.104,tema5,1,ulimit -u limitado (no unlimited),OK
+192.168.56.104,tema5,2,monitorización memoria (script + cron + log),OK
+
+host,tema,passed,total,score_percent
+192.168.56.104,tema5,2,2,100
