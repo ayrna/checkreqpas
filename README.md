@@ -278,7 +278,7 @@ facilita la interpretación rápida de los resultados por parte del
 profesorado.
 
 ![Ejemplo del *dashboard* mostrando los resultados de una
-auditoría](pic/dashboard.png){#fig:dashboard width="90%"}
+auditoría](pic/dashboard.png)
 
 ## Extensión del sistema de auditoría
 
