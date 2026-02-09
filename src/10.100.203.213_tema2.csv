@@ -1,0 +1,7 @@
+cat 10.100.203.213_tema2.csv 
+host,tema,prueba_id,descripcion,resultado
+10.100.203.213,tema2,1,permisos claves .ssh (root y adminpas),FAIL
+10.100.203.213,tema2,2,/var/www con grupo web (0775 root:web),FAIL
+
+host,tema,passed,total,score_percent
+10.100.203.213,tema2,0,2,0
